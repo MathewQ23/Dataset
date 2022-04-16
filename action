@@ -1,0 +1,65 @@
+import glob
+import json
+import os.path
+from shutil import copy2
+
+
+def splie_class(fname):
+    #path=r'D:\数据集\4(2603开始)\4'
+    #ann_path=r'D:\数据集\4(2603开始)\4\*.json'
+    #img_path=r'D:\数据集\4(2603开始)\4\*.jpg'
+    ann_path=os.path.join(fname,'*.json')
+    img_path=os.path.join(fname,'*.jpg')
+    ann_list=glob.glob(ann_path)
+    img_list=glob.glob(img_path)
+    cla0_path=r'D:\数据集\class_splite\0'
+    cla1_path = r'D:\数据集\class_splite\1'
+    cla2_path = r'D:\数据集\class_splite\2'
+    cla3_path = r'D:\数据集\class_splite\3'
+    cla4_path = r'D:\数据集\class_splite\4'
+    cla5_path = r'D:\数据集\class_splite\5'
+    cla6_path = r'D:\数据集\class_splite\6'
+    cla7_path = r'D:\数据集\class_splite\7'
+    cla8_path = r'D:\数据集\class_splite\8'
+
+    for line in ann_list:
+        print(line)
+        with open(line,'r',encoding='utf-8') as json_file:
+
+            json_dict=json.load(json_file)
+
+            img = os.path.join(fname, json_dict['imagePath'])
+            if(json_dict['flags']['听课']):
+                copy2(img,cla0_path)
+            if (json_dict['flags']['玩手机']):
+                copy2(img, cla1_path)
+            if (json_dict['flags']['睡觉']):
+                copy2(img, cla2_path)
+            if (json_dict['flags']['举手']):
+                copy2(img, cla3_path)
+            if (json_dict['flags']['站立']):
+                copy2(img, cla4_path)
+            if (json_dict['flags']['写字']):
+                copy2(img, cla5_path)
+            if (json_dict['flags']['看书']):
+                copy2(img, cla6_path)
+            if (json_dict['flags']['其他']):
+                copy2(img, cla7_path)
+            if (json_dict['flags']['非人类']):
+                copy2(img, cla8_path)
+    '''
+    with open(r"D:\数据集\4(2603开始)\4\image4-2603.json", "r",encoding="utf-8") as json_file:
+        json_dict = json.load(json_file)
+        print(json_dict['flags']['听课'])
+        print(json_dict['imagePath'])
+        print("type(json_dict) = >", type(json_dict))
+    print(json.dumps(json_dict, indent=4))
+    '''
+
+if __name__ == '__main__':
+    list=[r'D:\数据集\1-5501以后\1-5501以后',r'D:\数据集\1-前5500\1-前5500',r'D:\数据集\3和4(1-2602)\image\3',r'D:\数据集\3和4(1-2602)\image\4',r'D:\数据集\4k1',r'D:\数据集\2\2\陈胜樟后半\image',
+          r'D:\数据集\2\2\侯凯前半\2',r'D:\数据集\2\2\侯凯前半\4k2',r'D:\数据集\2\2\侯凯前半\玩手机2']
+    for i in list:
+        print(i)
+        splie_class(i)
+        #splie_class(r'D:\数据集\4(2603开始)\4')
