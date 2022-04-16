@@ -1,0 +1,536 @@
+"""
+整体思路：用os.walk函数遍历coco数据集目录下的所有文件，只取出txt文件，因为里面还有一个classes文件，需要把它过滤掉，
+为了增加在开始显示类别的效果，又重新写了一个classes-num的txt文件，里面包括编号和类别，方便训练时查看对应类别，
+后边就是用readlines函数读取txt文件的每一行，并取出第一个元素也就是类别编号，需要注意的是读取路径需要加上root才能读到
+目录下的txt文件，取出来的标号是str类型，需要转换int,但是里面不能有换行符这种非数字的str，
+"""
+"""
+需要准备的数据：所有图片放到img_path下，txt文件放到coco/labels/all文件夹下
+"""
+
+
+import os
+import cv2
+import glob
+import random
+from shutil import copy2
+from PIL import Image
+import xml.etree.ElementTree as ET
+
+path=r'F:\person'
+#img_path=os.path.join(path,'img')
+img_path=r'F:\person\val2017'
+#test_img_path=r'E:\record\v10\test2017\images'
+image_path=os.path.join(path,'images')
+label_path=os.path.join(path,'labels')
+txt_path=os.path.join(label_path,'all\*.txt')
+
+
+train_txt_path=os.path.join(label_path,'train.txt')
+val_txt_path=os.path.join(label_path,'val.txt')
+test_txt_path=os.path.join(label_path,'test.txt')
+
+train_txt_img_path=os.path.join(image_path,'train_img.txt')
+val_txt_img_path=os.path.join(image_path,'val_img.txt')
+test_txt_img_path=os.path.join(image_path,'test_img.txt')
+
+train_image_pth=os.path.join(image_path,'train2017')
+val_image_pth=os.path.join(image_path,'val2017')
+test_image_pth=os.path.join(image_path,'test2017')
+
+train_txt=os.path.join(label_path,'train2017')
+val_txt=os.path.join(label_path,'val2017')
+test_txt=os.path.join(label_path,'test2017')
+#classes = ["听课", "睡觉","站立","玩手机","写字","看书","举手"]
+classes = ['Listen', 'Sleep', 'Stand','Playphone','Writing','Reading','Raisehand']
+
+def static(single_img,txt_path):
+    #classes = ['playphone', 'sleep','phone']
+    nums = [0, 0, 0, 0, 0, 0]
+    with open(txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符,得到txt路径
+
+            nums_txt = [0, 0, 0, 0, 0, 0]  # 单个txt中的类别个数
+           # filename = os.path.splitext(line)  # 文件名与后缀分开
+
+            with open(line, 'r') as f:
+                data = f.readlines()
+                for j in data:
+                    class_n = j[0] #获取类别
+                    a = int(class_n)
+                    nums[a] = nums[a] + 1
+                    nums_txt[a] = nums_txt[a] + 1
+                if single_img:
+                    #单个txt文件详细信息：
+                    i = 0
+                    single = 0  # 计算单个txt文件中的总数
+                    print(('filename:', line))
+                    for each in nums_txt:
+                        print(classes[i], ':', each)
+                        single = single + each
+                        i += 1
+                    print('single-img:', single)
+        i = 0
+        for each in nums:
+            #print(classes[i], ':', each)
+            i += 1
+    return nums
+
+def static_total(train_path,val_path):
+    classes = ['Raisehand', 'Headdown', 'Playphone','Writing','Lietable','Stand']
+    #single_img = True  # 单个txt文件的类别
+    single_img = False
+    nums = [0, 0, 0, 0, 0, 0]
+    print('total:')  # 输出 总的类别：个数
+    i = 0
+
+    for each in nums:
+        nums[i]=static(single_img,train_path)[i]+static(single_img,val_path)[i]
+        print(classes[i], ':', nums[i])
+        i += 1
+
+def static_total_1130(path):
+    classes = ['Raisehand', 'Headdown', 'Playphone','Writing','Lietable','Stand']
+    single_img = False  # 单个txt文件的类别
+    nums = [0, 0, 0, 0, 0, 0]
+    print('total:')  # 输出 总的类别：个数
+    i = 0
+
+    for each in nums:
+        nums[i]=static(single_img,path)[i]
+        print(classes[i], ':', nums[i])
+        i += 1
+
+def train_val_split():
+
+    txt_path=r"F:\dataset\v4\txt\*.txt"
+    # 全部的txt
+    # glob.glob返回所有匹配的文件路径列表。
+    image_list = glob.glob(txt_path)
+    # 打乱
+    random.shuffle(image_list)
+    # 这里是划分，我设置的是0.85：0.15  可以根据自己情况划分
+    num = len(image_list)
+    train_list = image_list[:int(0.6 * num)]
+    val_list = image_list[int(0.6 * num):int(0.8 * num)]
+    test_list=image_list[int(0.8 * num):]
+    # 写入，CV2的判断语句是因为有些图片CV2无法读取，会返回none，导致报错，所以我们直接跳过这样的图片
+    with open(train_txt_path, 'w') as f1:
+        with open(train_txt_img_path,'w') as f2:
+            for line in train_list:
+                #print(line)
+                f1.write(line + '\n')
+                print('写入：', line)
+                jpg_name=os.path.basename(line)
+                jpg_name = jpg_name.replace('txt', 'jpeg')
+                jpg_name=os.path.join(img_path,jpg_name)
+                img = cv2.imread(jpg_name)
+                if img is not None:
+                    f2.write(jpg_name + '\n')
+                    print('写入：', jpg_name)
+                else:
+                    print("找不到",jpg_name)
+    # 写入验证集
+    with open(val_txt_path, 'w') as f1:
+        with open(val_txt_img_path, 'w') as f2:
+            for line in val_list:
+                f1.write(line + '\n')
+                print('写入：', line)
+
+                jpg_name = os.path.basename(line)
+                jpg_name = jpg_name.replace('txt', 'jpeg')
+                jpg_name = os.path.join(img_path, jpg_name)
+                img = cv2.imread(jpg_name)
+                if img is not None:
+                    f2.write(jpg_name + '\n')
+                    print('写入：', jpg_name)
+    # 写入测试集
+    with open(test_txt_path, 'w') as f1:
+        with open(test_txt_img_path,'w') as f2:
+            for line in test_list:
+                #print(line)
+                f1.write(line + '\n')
+                print('写入：', line)
+                jpg_name=os.path.basename(line)
+                jpg_name = jpg_name.replace('txt', 'jpeg')
+                jpg_name=os.path.join(img_path,jpg_name)
+                img = cv2.imread(jpg_name)
+                if img is not None:
+                    f2.write(jpg_name + '\n')
+                    print('写入：', jpg_name)
+                else:
+                    print("找不到",jpg_name)
+
+    with open(train_txt_img_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, train_image_pth)
+    with open(val_txt_img_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, val_image_pth)
+    with open(test_txt_img_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, test_image_pth)
+
+
+    with open(train_txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, train_txt)
+    with open(val_txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, val_txt)
+    with open(test_txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, test_txt)
+
+'''
+    all_image = os.listdir(image_original_path)
+    for i in all_image:
+        if i % 10 != 0:
+            copy2(os.path.join(image_original_path, all_image[i]), train_image_path)
+        else:
+            copy2(os.path.join(image_original_path, all_image[i]), test_image_path)
+
+    # 复制移动标注数据
+    all_label = os.listdir(train_txt_path)
+    for i in range(len(all_label)):
+        if i % 10 != 0:
+            copy2(os.path.join(train_txt_path, all_label[i]), train_label_path)
+        else:
+            copy2(os.path.join(train_txt_path, all_label[i]), test_label_path)
+'''
+def train_val_split_notest():
+
+    txt_path=r"F:\person\label\*.txt"
+    # 全部的txt
+    # glob.glob返回所有匹配的文件路径列表。
+    image_list = glob.glob(txt_path)
+    # 打乱
+    random.shuffle(image_list)
+    # 这里是划分，我设置的是0.85：0.15  可以根据自己情况划分
+    num = len(image_list)
+    train_list = image_list[:int(0.8 * num)]
+    val_list = image_list[int(0.8 * num):]
+    # 写入，CV2的判断语句是因为有些图片CV2无法读取，会返回none，导致报错，所以我们直接跳过这样的图片
+    with open(train_txt_path, 'w') as f1:
+        with open(train_txt_img_path,'w') as f2:
+            for line in train_list:
+                #print(line)
+                f1.write(line + '\n')
+                print('写入：', line)
+                jpg_name=os.path.basename(line)
+                jpg_name = jpg_name.replace('txt', 'jpg')
+                jpg_name=os.path.join(img_path,jpg_name)
+                img = cv2.imread(jpg_name)
+                if img is not None:
+                    f2.write(jpg_name + '\n')
+                    print('写入：', jpg_name)
+                else:
+                    print("找不到",jpg_name)
+    # 写入验证集
+    with open(val_txt_path, 'w') as f1:
+        with open(val_txt_img_path, 'w') as f2:
+            for line in val_list:
+                f1.write(line + '\n')
+                print('写入：', line)
+
+                jpg_name = os.path.basename(line)
+                jpg_name = jpg_name.replace('txt', 'jpg')
+                jpg_name = os.path.join(img_path, jpg_name)
+                img = cv2.imread(jpg_name)
+                if img is not None:
+                    f2.write(jpg_name + '\n')
+                    print('写入：', jpg_name)
+
+
+    with open(train_txt_img_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, train_image_pth)
+    with open(val_txt_img_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, val_image_pth)
+
+
+
+    with open(train_txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, train_txt)
+    with open(val_txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, val_txt)
+
+
+def get_list():
+    a=r"F:\dataset\v3\txt"
+    test_txt_path=r"F:\dataset\v3\label.txt" #要保存到的txt文件
+    image_list = glob.glob(r'F:\dataset\v3\img\*.jpeg') #
+    test_txt_img_path=r"F:\dataset\v3\img.txt"
+
+    # 写入，CV2的判断语句是因为有些图片CV2无法读取，会返回none，导致报错，所以我们直接跳过这样的图片,路径要英文路径才可以cv读图片
+    with open(test_txt_path, 'w') as f1:
+        with open(test_txt_img_path, 'w') as f2:
+            for line in image_list:
+
+                jpg_name = os.path.basename(line)
+                print(jpg_name)
+                #jpg_name = jpg_name.replace('txt', 'jpg')
+                jpg_name = os.path.join(a, jpg_name)
+                txt_name = jpg_name.replace('jpeg', 'txt')
+                txt_name=txt_name.replace('image','txt')
+                f1.write(txt_name + '\n')
+                print('写入：', txt_name)
+                print(txt_name)
+                img = cv2.imread(jpg_name)
+                if img is not None:
+                    f2.write(jpg_name + '\n')
+                    print('写入：', jpg_name)
+                else:
+                    print("找不到", jpg_name)
+
+
+    with open(test_txt_img_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, train_image_pth)
+
+
+    with open(test_txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            copy2(line, train_txt)
+
+
+def remove():
+    with open(r"D:\classvideo\dataset-v7\coco\val.txt", "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            print(type(line))
+            copy2(line,r'D:\classvideo\dataset-v7\coco\labels\val2017')
+    with open(r"D:\classvideo\dataset-v7\coco\train.txt", "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符
+            print(type(line))
+            copy2(line,r'D:\classvideo\dataset-v7\coco\labels\train2017')
+
+def rename():
+    #path=input("请输入路径(例如D:\\\\picture)：")
+    path=r'D:\classvideo\120510-200-frame'
+    name=input("请输入开头名:")
+    startNumber=input("请输入开始数:")
+    fileType=input("请输入后缀名（如 .jpg、.txt等等）:")
+    print("正在生成以"+name+startNumber+fileType+"迭代的文件名")
+    count=0
+    filelist=os.listdir(path)
+    for files in filelist:
+        Olddir=os.path.join(path,files)
+        if os.path.isdir(Olddir):
+            continue
+        Newdir=os.path.join(path,name+str(count+int(startNumber))+fileType)
+        os.rename(Olddir,Newdir)
+        count+=200
+    print("一共修改了"+str(count)+"个文件")
+
+def new_rename():
+    #path=input("请输入路径(例如D:\\\\picture)：")
+    path=r'D:\数据集\image\4k2'
+    name=input("请输入开头名:")
+    #fileType=input("请输入后缀名（如 .jpg、.txt等等）:")v1
+    fileType='.jpg'
+    #print("正在生成以"+name+startNumber+fileType+"迭代的文件名")
+    filelist=os.listdir(path)
+    i=1
+    for files in filelist:
+        Olddir=os.path.join(path,files)
+        if os.path.isdir(Olddir):
+            continue
+        Newdir=os.path.join(path,name+'-'+str("%04d"%i)+fileType)
+        os.rename(Olddir,Newdir)
+        i=i+1
+    print("一共修改了"+str(i-1)+"个文件")
+
+def rename_new():
+    path=r'F:\dataset\v4\o-image'
+    fileType = input("请输入后缀名（如 .jpg、.txt等等）:")
+    filelist = os.listdir(path)
+    for files in filelist:
+        Olddir = os.path.join(path, files)
+        if os.path.isdir(Olddir):
+            continue
+        file=files.split('.')
+        Newdir = os.path.join(path,file[0]+ fileType)
+        if fileType!='.'+file[1]:
+            os.rename(Olddir, Newdir)
+      #  count += 200
+    #print("一共修改了" + str(count) + "个文件")
+
+def rename_str():
+    path = r'F:\dataset\v4\o-image'
+    old_name = input("请输入要替换的字符）:")
+    new_name=input("请输入新字符")
+    filelist = os.listdir(path)
+    for files in filelist:
+        Olddir = os.path.join(path, files)
+        if os.path.isdir(Olddir):
+            continue
+        new_file=files.replace(old_name,new_name)
+        Newdir=os.path.join(path,new_file)
+        os.rename(Olddir,Newdir)
+
+
+
+def get_resolution(path):
+    filelist=os.listdir(path)
+    fname = os.path.basename(path)
+    for files in filelist:
+        im = Image.open(path+'\\'+files)
+        imgSize = im.size
+        print(imgSize)
+        maxsize = max(imgSize)
+        minsize = min(imgSize)
+        print(files + '分辨率：', maxsize, '*', minsize)
+        frame = open(image_path+'\\'+fname+'.shapes', 'a')
+        frame.write(str(maxsize))
+        frame.write(str(' '))
+        frame.write(str(minsize) + '\n')
+    #copy2(frame, label_path)
+        # with open('coordinate.txt')
+
+def splite_class_txt(txt_path,classes):
+    '''
+    获取txt的目录，读取txt文件，获取每行第一个数字类别，判断，删除整行,打开一个新文件，向其中写入如果不是则跳过。
+    '''
+    with open(txt_path, "r") as f:  # 打开文件
+        for line in f.readlines():
+            line = line.strip('\n')  # 去掉列表中每一个元素的换行符,得到txt路径
+
+            with open(line, 'r') as f:
+                data = f.readlines()
+            with open(line, 'w') as f_w:
+                for j in data:
+                    class_n = j[0] #获取类别
+                    a = int(class_n)
+                    if(a==classes):
+                        continue
+                    f_w.write(j)
+
+def splite_class_xml(xml_path,classes):
+    yuan_dir = xml_path  # 设置原始标签路径为 Annos
+    new_dir = "F:/dataset/v3/new_xml"  # 设置新标签路径 Annotations
+    for filename in os.listdir(yuan_dir):
+        file_path = os.path.join(yuan_dir, filename)
+        new_path = os.path.join(new_dir, filename)
+        dom = ET.parse(file_path)
+        root = dom.getroot()
+        for obj in root.iter('object'):  # 获取object节点中的name子节点
+            print(obj.find('name').text)
+            print('classes:',classes)
+            if obj.find('name').text == classes:
+                print("发现未知类")
+                root.remove(obj)
+                # print("change %s to %s." % (yuan_name, new_name1))
+            #elif obj.find('name').text == 'a':
+             #   root.remove(obj)
+        ##可以继续删除，继续用elif语句
+        # 保存到指定文件
+        dom.write(new_path, xml_declaration=True,encoding='utf-8')
+
+def splite_6(old_file,new_file):
+    i=0
+    for filename in os.listdir(old_file):
+        if((i%6)==0):
+            old_filepath=os.path.join(old_file,filename)
+            new_filepath=os.path.join(new_file,filename)
+            copy2(old_filepath,new_filepath)
+            print("拷贝完成")
+        i+=1
+
+def rename_class_xml(xml_path,oldclass1,newclass1,oldclass2,newclass2,oldclass3,newclass3,oldclass4,newclass4,oldclass5,newclass5,oldclass6,newclass6,oldclass7,newclass7):
+    yuan_dir = xml_path  # 设置原始标签路径为 Annos
+    new_dir = r"F:\dataset\v4\coco\Eng_train"  # 设置新标签路径 Annotations
+    for filename in os.listdir(yuan_dir):
+        file_path = os.path.join(yuan_dir, filename)
+        new_path = os.path.join(new_dir, filename)
+        dom = ET.parse(file_path)
+        root = dom.getroot()
+        for obj in root.iter('object'):  # 获取object节点中的name子节点
+            #
+            #print('classes:',oldclass)
+            if obj.find('name').text == oldclass1:
+                obj.find('name').text=newclass1
+            elif obj.find('name').text == oldclass2:
+                obj.find('name').text=newclass2
+            elif obj.find('name').text == oldclass3:
+                obj.find('name').text = newclass3
+            elif obj.find('name').text == oldclass4:
+                obj.find('name').text = newclass4
+            elif obj.find('name').text == oldclass5:
+                obj.find('name').text = newclass5
+            elif obj.find('name').text == oldclass6:
+                obj.find('name').text = newclass6
+            elif obj.find('name').text == oldclass7:
+                obj.find('name').text = newclass7
+            elif obj.find('name').text == '听讲':
+                obj.find('name').text = 'listen'
+            elif obj.find('name').text == '玩手机、':
+                obj.find('name').text = 'playphone'
+            elif obj.find('name').text == '未知类':
+                root.remove(obj)
+            else:
+                print(file_path)
+                print(obj.find('name').text)
+                # print("change %s to %s." % (yuan_name, new_name1))
+
+        ##可以继续删除，继续用elif语句
+        # 保存到指定文件
+        dom.write(new_path, xml_declaration=True,encoding='utf-8')
+def get_dataset_xml():
+    txt_path=r'F:\dataset\v4\labels\train2017\*.txt'
+    xml_path=r'F:\dataset\v4\n-label\*.xml'
+    output_path=r'F:\dataset\v4\coco\train'
+    txt_list=glob.glob(txt_path)
+    xml_list=glob.glob(xml_path)
+    for line in txt_list:
+        #print(line)
+        xml_name=line.replace('txt','xml')
+        base_xml=os.path.basename(xml_name)
+        print(os.path.basename(xml_name))
+        for xml in xml_list:
+            xml1=os.path.basename(xml)
+            #print(xml)
+            if xml1==base_xml:
+                copy2(xml,output_path)
+                print('写入：',xml)
+
+if __name__ == '__main__':
+#    rename()
+    #train_path = r'E:\record\v10\labels\train.txt'
+    #val_path = r'E:\record\v10\labels\val.txt'
+    #get_list()
+    #static_total(train_path,val_path)
+    #static_total_1130(txt_path)
+    #train_val_split()
+    #train_val_split_notest()
+    #rename()
+    rename_new()
+    #rename_str()
+    #new_rename()
+    #get_resolution(r'F:\dataset\v2\images\val2017')
+    #get_resolution(val_image_pth)
+    #test()
+    #jpg_name=r"E:\4k1-0001.jpeg"
+    #img = cv2.imread(jpg_name)
+    #splite_class_txt("F:/dataset/v3/label.txt",7)
+    #splite_class_xml("F:/dataset/v3/splite6_xml", "未知类")
+    #splite_6("F:/dataset/v3/label_Eng","F:/dataset/v3/splite6_xml")
+    #rename_class_xml(r"F:\dataset\v4\coco\train",'听课','listen','睡觉','sleep','站立','stand','玩手机','playphone','写字','writing','看书','reading','举手','raising')
+    #get_dataset_xml()
