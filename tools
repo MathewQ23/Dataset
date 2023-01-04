@@ -17,6 +17,14 @@ from shutil import copy2
 from PIL import Image
 import xml.etree.ElementTree as ET
 
+#需要预先建好文件夹
+# path
+# --images
+#     --train2017
+#     --val2017
+# --labels
+#     --train2017
+#     --val2017
 path=r'F:\person'
 #img_path=os.path.join(path,'img')
 img_path=r'F:\person\val2017'
@@ -206,7 +214,7 @@ def train_val_split():
             copy2(os.path.join(train_txt_path, all_label[i]), test_label_path)
 '''
 def train_val_split_notest():
-
+    # 注释文件位置
     txt_path=r"F:\person\label\*.txt"
     # 全部的txt
     # glob.glob返回所有匹配的文件路径列表。
