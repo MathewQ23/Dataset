@@ -29,7 +29,7 @@ txt_path=os.path.join(label_path,'all\*.txt')
 train_txt_path=os.path.join(label_path,'train.txt')
 val_txt_path=os.path.join(label_path,'val.txt')
 test_txt_path=os.path.join(label_path,'test.txt')
-
+123
 train_txt_img_path=os.path.join(image_path,'train_img.txt')
 val_txt_img_path=os.path.join(image_path,'val_img.txt')
 test_txt_img_path=os.path.join(image_path,'test_img.txt')
@@ -340,6 +340,7 @@ def rename():
         count+=200
     print("一共修改了"+str(count)+"个文件")
 
+#对文件夹下所有图片按序号修改名称
 def new_rename():
     #path=input("请输入路径(例如D:\\\\picture)：")
     path=r'D:\数据集\image\4k2'
@@ -357,7 +358,8 @@ def new_rename():
         os.rename(Olddir,Newdir)
         i=i+1
     print("一共修改了"+str(i-1)+"个文件")
-
+    
+#修改后缀名
 def rename_new():
     path=r'F:\dataset\v4\o-image'
     fileType = input("请输入后缀名（如 .jpg、.txt等等）:")
